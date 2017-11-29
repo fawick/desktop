@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/maputnik/desktop/filewatch"
 	"github.com/urfave/cli"
+
+	ts "github.com/consbio/mbtileserver/handlers"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -30,6 +35,10 @@ func main() {
 		cli.StringFlag{
 			Name:  "static",
 			Usage: "Serve directory under /static/",
+		},
+		cli.StringFlag{
+			Name:  "tileserver",
+			Usage: "Serve mbtiles files in this directory under /services/",
 		},
 	}
 
@@ -59,6 +68,15 @@ func main() {
 		if staticDir != "" {
 			h := http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir)))
 			router.PathPrefix("/static/").Handler(h)
+		}
+		servicesDir := c.String("tileserver")
+		if servicesDir != "" {
+			svcs, err := ts.NewFromBaseDir(servicesDir)
+			if err == nil {
+				router.PathPrefix("/services").Handler(svcs.Handler(nil))
+			} else {
+				log.Println(err)
+			}
 		}
 
 		router.PathPrefix("/").Handler(http.StripPrefix("/", gui))
